@@ -224,7 +224,7 @@ class AutoeditDlg(QtGui.QWidget):
 		else:
 			pal.setColor(QtGui.QPalette.Window, QtGui.QColor('gray'))
 		self.dialog.label_ep_info.setPalette(pal)
-		self.dialog.label_ep_info.setText(self.ep + '\n' + ep_length_timecode + '\n' + ep_length_by_prw_timecode + '\n' + sedit)
+		self.dialog.label_ep_info.setText(self.ep + '\n SG timecode: ' + ep_length_timecode + '\n PRW timecode: ' + ep_length_by_prw_timecode + '\n' + sedit)
 		#return ep_pattern, ep_length, EP_JOB_LIST
 
 	def start_export(self):
