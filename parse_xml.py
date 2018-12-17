@@ -6,28 +6,28 @@ import autoedit_main
 #sys.path.append('//PAROVOZ-FRM01//Shotgun//utils2')
 #sys.path.append(r'//parovoz-frm01//tank//shared_core//studio//install//core//python//tank_vendor')
 
-import helpers
-from shotgun_api3 import Shotgun
+#import helpers
+#from shotgun_api3 import Shotgun
 
-SERVER_PATH = 'https://parovoz.shotgunstudio.com' # make sure to change this to https if your studio uses it.
-SCRIPT_NAME = 'dmityscripts'
-SCRIPT_KEY = 'd8337d21a847a212b98e6f012737eee6d12dff7b74ed71fba7771d278370b585'
+#SERVER_PATH = 'https://parovoz.shotgunstudio.com' # make sure to change this to https if your studio uses it.
+#SCRIPT_NAME = 'dmityscripts'
+#SCRIPT_KEY = 'd8337d21a847a212b98e6f012737eee6d12dff7b74ed71fba7771d278370b585'
 
-SG = Shotgun(SERVER_PATH, SCRIPT_NAME, SCRIPT_KEY)
+#SG = Shotgun(SERVER_PATH, SCRIPT_NAME, SCRIPT_KEY)
 #path = os.path.abspath(r'\\omega\woody\1_pre\ep040\animatic\timecodes\ep040_timecodes.xml')
 
 #path = sys.argv[1]
 framerate = 25.0
 
 #raw_input("Press the <ENTER> key to continue...")
-def update_sg_episode_field(path, data, ep_name, prj_name):
-	project = autoedit_main.get_prj_id(prj_name)
-	active_episodes = SG.find('CustomEntity01',[['project.Project.id', 'is', project],['sg_status_list', 'is', 'ip']],['code', 'description', 'sg_name'])
-	#print data
-	print 'EP NAME:', ep_name
-	#print 'active_episodes:', active_episodes
-	ep_id = [i['id'] for i in active_episodes if i['code'] == ep_name][0]
-	SG.update("CustomEntity01", ep_id, {'sg_dir':', '.join(data)})
+#def update_sg_episode_field(data, ep_name, prj_name):
+	#project = autoedit_main.get_prj_id(prj_name)
+	#active_episodes = SG.find('CustomEntity01',[['project.Project.id', 'is', project],['sg_status_list', 'is', 'ip']],['code', 'description', 'sg_name'])
+	##print data
+	#print 'EP NAME:', ep_name
+	##print 'active_episodes:', active_episodes
+	#ep_id = [i['id'] for i in active_episodes if i['code'] == ep_name][0]
+	#SG.update("CustomEntity01", ep_id, {'sg_dir':', '.join(data)})
 
 def parse_ep_name(path):
 	return path.rsplit('\\', 1)[1].split('_')[0]
@@ -76,11 +76,11 @@ def init_parsing(path, ep_name, prj_name):
 	for j,i in enumerate(L1):
 		start = int(i[1]['start'])
 		end = int(i[1]['end'])
-		print j+1, frames_to_timecode(start + 1, start='00:00:00:00'), frames_to_timecode(end, start='00:00:00:00')
+		#print j+1, frames_to_timecode(start + 1, start='00:00:00:00'), frames_to_timecode(end, start='00:00:00:00')
 
 	z = [i[1]['name'] for i in L1]
-	pprint([i[1]['name'] for i in L1])
+	#pprint([i[1]['name'] for i in L1])
 
 #write string for sg
 	with open(out_path, 'a') as f1: f1.write(str(z))
-	update_sg_episode_field(path, z, ep_name, prj_name)
+	autoedit_main.update_sg_episode_field(z, ep_name, prj_name)

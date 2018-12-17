@@ -11,6 +11,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 from colorama import init, Fore, Back, Style
 init(autoreset=True)
 
+ffmgeg_path = 'Y:/tools30/utilities/ffmpeg/windows/bin/ffmpeg.exe'
+
 sys.path.append('//PAROVOZ-FRM01//Shotgun//utils2')
 sys.path.append(r'//parovoz-frm01//tank//shared_core//studio//install//core//python//tank_vendor')
 #sys.path.append(r'D://Work//Scripts//other')
@@ -25,20 +27,20 @@ SERVER_PATH = 'https://parovoz.shotgunstudio.com' # make sure to change this to 
 SCRIPT_NAME = 'dmityscripts'
 SCRIPT_KEY = 'd8337d21a847a212b98e6f012737eee6d12dff7b74ed71fba7771d278370b585'
 
-sg = Shotgun(SERVER_PATH, SCRIPT_NAME, SCRIPT_KEY)
+SG = Shotgun(SERVER_PATH, SCRIPT_NAME, SCRIPT_KEY)
 
 serv = 'omega'
 #PRJ = ''
-processes_dict = {'3_post':['comp', 'comp2d', 'render'], '2_prod':['anim', 'anim2d', 'layout', 'cut']}
+processes_dict = {'3_post':['comp', 'comp2d', 'render'], '2_prod':['asmbl', 'anim', 'anim2d', 'layout', 'cut']}
 version_file_dict = {'sh_name':'sh_name', 'filename':'filename', 'time':0000, 'stage':'stage', 'proc':'proc', 'framecount':'000', 'path':'path'}
 
 def DEBUG():
 	project = get_prj_id('woody')
-	print sg.find('Asset', [['project.Project.id', 'is', project], ['custom_entity01_sg_assets_custom_entity01s.CustomEntity01.code', 'is', 'ep043'], ['sg_type_one.CustomEntity04.code', 'is', 'locs']], ['code'])
+	print SG.find('Asset', [['project.Project.id', 'is', project], ['custom_entity01_sg_assets_custom_entity01s.CustomEntity01.code', 'is', 'ep043'], ['sg_type_one.CustomEntity04.code', 'is', 'locs']], ['code'])
 
 def get_all_prj_eps(prj_name):
 	project = get_prj_id(prj_name)
-	active_episodes = sg.find('CustomEntity01',[['project.Project.id', 'is', project],['sg_status_list', 'is', 'ip']],['code', 'description', 'sg_name'])
+	active_episodes = SG.find('CustomEntity01',[['project.Project.id', 'is', project],['sg_status_list', 'is', 'ip']],['code', 'description', 'sg_name'])
 	return sorted([[i['code'], i['sg_name']] for i in active_episodes])
 
 def get_ep_pattern(ep, prj_name):
@@ -47,7 +49,7 @@ def get_ep_pattern(ep, prj_name):
 	#print 'get_ep_pattern sg info', sginfo
 	sginfo._task_fields.append('entity.Shot.sg_sequence.Sequence.sg_episode.CustomEntity01.sg_dir')
 	try:
-		sg_ep_pattern = sginfo.get_task(sg)['entity.Shot.sg_sequence.Sequence.sg_episode.CustomEntity01.sg_dir']
+		sg_ep_pattern = sginfo.get_task(SG)['entity.Shot.sg_sequence.Sequence.sg_episode.CustomEntity01.sg_dir']
 		if sg_ep_pattern: return sg_ep_pattern.translate(None,"',").split(' ')
 	except Exception:
 		print "can't get ep_pattern from SG"
@@ -56,8 +58,6 @@ def get_ep_pattern(ep, prj_name):
 def get_prj_id(prj_name):
 	if prj_name == 'woo-woo': prj_name = 'woowoo'
 	project_id = prj_name + '_id'
-	print 'DEBUG project_id', project_id
-	print 'helpers.ProjectHelper.' + project_id
 	return eval('helpers.ProjectHelper.' + project_id)
 
 def get_SG_INFO(prw_filename, prj_name):
@@ -65,6 +65,14 @@ def get_SG_INFO(prw_filename, prj_name):
 	project = get_prj_id(prj_name)
 	print 'project in get_SG_INFO', project
 	return dsc.ShotCodeInfo(prw_filename,  project)
+
+def update_sg_episode_field(data, ep_name, prj_name):
+	project = get_prj_id(prj_name)
+	active_episodes = SG.find('CustomEntity01',[['project.Project.id', 'is', project],['sg_status_list', 'is', 'ip']],['code', 'description', 'sg_name'])
+	print 'EP NAME:', ep_name
+	#print 'active_episodes:', active_episodes
+	ep_id = [i['id'] for i in active_episodes if i['code'] == ep_name][0]
+	SG.update("CustomEntity01", ep_id, {'sg_dir':', '.join(data)})
 
 def configure_path(prj_name='', sh_name='', prw='', proc='', edt='', filenm ='', ep=''):
 	path = os.path.abspath(r'\\{server}\\{project}\\{process}\\{episode}\\{shot}\\{preview}\\{edit}\\{filename}'.format(server=serv, project=prj_name, process=proc, episode=ep, shot=sh_name, preview=prw, edit=edt, filename=filenm))
@@ -74,12 +82,13 @@ def collect_prws2(path, stage, sh_name, ep_name, prj_name):
 	coll_lst_dict = {}
 	for proc in processes_dict[stage]:#for ['comp', 'render'] или ['anim', 'layout', 'cut']
 		if proc == 'cut': path = configure_path(prj_name=prj_name, sh_name=sh_name, prw='cut', proc='2_prod', ep=ep_name)
-		prw_filename_list = sorted([name for name in os.listdir(path) if proc in name and 'wav' not in name])#sort current proc previews by version
-		#print '@DEBUG ', proc, prw_filename_list
-		if len(prw_filename_list) > 0:
+		#prw_filename_list = sorted([name for name in os.listdir(path) if proc in name.split('_') and 'wav' not in name])#sort current proc previews by version
+		prw_filename = get_latest_filename(path, proc, 'mov')
+		#print '@DEBUG ', proc, prw_filename
+		if prw_filename != False:
 			coll_lst_dict[proc] = dict(sh_name=sh_name,
-										filename=prw_filename_list[-1],
-										time=os.stat(path+'\\'+prw_filename_list[-1]).st_mtime,
+										filename=prw_filename,
+										time=os.stat(path+'\\'+prw_filename).st_mtime,
 										stage=stage,
 										proc=proc,
 										framecount='000',
@@ -201,7 +210,7 @@ def make_ep_job_list(sh_name, prw_container, ep_name, EP_JOB_LIST, prj_name):
 		SG_INFO = get_SG_INFO(prw_filename, prj_name)
 		print 'SG_INFO', SG_INFO
 		SG_INFO.process = 'cut'
-		SG_frame_count = int(SG_INFO.get_task(sg)['entity.Shot.sg_cut_out'])
+		SG_frame_count = int(SG_INFO.get_task(SG)['entity.Shot.sg_cut_out'])
 		print 'SG_frame_count', SG_frame_count
 		if SG_frame_count == None: SG_frame_count = 0
 	except:
@@ -221,7 +230,7 @@ def make_ep_job_list(sh_name, prw_container, ep_name, EP_JOB_LIST, prj_name):
 	prw_frame_count_log = prw_frame_count
 
 	#render png sequence
-	cmd = 'ffmpeg.exe -i ' + prw_filename_path + ' -r 25 ' + edit_filename_path
+	cmd = ffmgeg_path + ' -i ' + prw_filename_path + ' -r 25 ' + edit_filename_path
 
 	prw_files_list_to_del = []
 	error_code = {'SG':0, 'LAST_SYNC':0}
@@ -288,10 +297,10 @@ def make_ep_job_list(sh_name, prw_container, ep_name, EP_JOB_LIST, prj_name):
 def check_overframes(edit_dir_path, SG_frame_count, data_prw_framecount):
 	obsolete_frame_count = data_prw_framecount - SG_frame_count
 	prw_files_list = sorted([i for i in os.listdir(edit_dir_path) if 'png' in i])
-	print 'DEBUG CHECK OVERFRAMES'
-	print obsolete_frame_count
-	print len(prw_files_list)
-	print SG_frame_count
+	#print 'DEBUG CHECK OVERFRAMES'
+	#print obsolete_frame_count
+	#print len(prw_files_list)
+	#print SG_frame_count
 	if obsolete_frame_count > 0 and len(prw_files_list) > SG_frame_count:
 		prw_files_list_to_del = map(lambda x: os.path.join(edit_dir_path, x), prw_files_list[-obsolete_frame_count:])
 		print '\n'+'###'*15
@@ -309,7 +318,10 @@ def remove_overframes(prw_files_list_to_del):
 def get_latest_filename(chk_path, chk_str, chk_ext=''):
 	l1 = sorted([i for i in os.listdir(chk_path) if chk_str in i and chk_ext in i])
 	#print 'DEBUG get_latest_filename: sorted list', l1
-	if len(l1) > 0:	return l1[-1]
+	if len(l1) > 0:
+		return l1[-1]
+	else:
+		return False
 
 def get_latest_vers_postfix(filename):
 	if not filename:
@@ -322,7 +334,7 @@ def get_latest_vers_postfix(filename):
 
 def get_autoedit_ver(master_ep, prj_name):
 	autoedit_output_path = configure_path(prj_name=prj_name, sh_name='edit', proc='3_post', ep=master_ep)
-	current_latest = get_latest_filename(autoedit_output_path, 'edit')
+	current_latest = get_latest_filename(autoedit_output_path, 'edit', 'mov')
 	current_postfix = get_latest_vers_postfix(current_latest)
 	#print 'DEBUG get_autoedit_ver: current_latest, current_postfix', current_latest, current_postfix
 	return str(current_postfix+1).zfill(3)#return version in "00x" format
@@ -338,7 +350,7 @@ def get_sedit(master_ep, prj_name):
 		return 'NO SEDIT'
 	
 def get_master_ep(ep_pattern):
-	print 'DEBUG ep_pattern', ep_pattern
+	#print 'DEBUG ep_pattern', ep_pattern
 	try:
 		return [i for i in ep_pattern if 'ep' in i][0].split('_')[0]
 	except:
@@ -369,13 +381,16 @@ def export_autoedit(ep_pattern, allshots_prw_lst, prj_name):
 	edit_allshots_out_path = configure_path(prj_name=prj_name, sh_name='edit', proc='3_post', filenm=master_ep + '_edit_v'+ autoedit_ver + '.mov', ep=master_ep)
 	edit_allshots_out_path_TMP = 'd:\\temp\\autoedits\\' + prj_name + '\\\\'+ master_ep + '_edit_v' + autoedit_ver + '.mov'
 	edit_allshots_out_path_TMP = os.path.abspath(edit_allshots_out_path_TMP)
-	cmd = 'ffmpeg.exe -r 25 -f concat -safe 0 -i ' + edit_allshots_prw_path + ' -i ' + sedit_filename_path + ' -c:v libx264 -c:a aac -pix_fmt yuv420p -profile baseline -refs 2 -crf 21 -r 25 -shortest -y ' + edit_allshots_out_path_TMP 
+	cmd = ffmgeg_path + ' -r 25 -f concat -safe 0 -i ' + edit_allshots_prw_path + ' -i ' + sedit_filename_path + ' -c:v libx264 -c:a aac -pix_fmt yuv420p -profile baseline -refs 2 -crf 21 -r 25 -shortest -y ' + edit_allshots_out_path_TMP 
 	print  Fore.YELLOW + cmd + '\n'
 	os.system(cmd)
 	shutil.copy2(edit_allshots_out_path_TMP, edit_allshots_out_path)
 
 def get_prw_by_flag(prw_list_complete, export_flag, sh_name):
-	proc_sort_list = ['comp', 'render', 'anim', 'layout', 'cut']
+	#processes_dict = {'3_post':['comp', 'comp2d', 'render'], '2_prod':['asmbl', 'anim', 'anim2d', 'layout', 'cut']}
+	proc_sort_list_init = processes_dict['3_post'] + processes_dict['2_prod']
+	#proc_sort_list = ['comp', 'render', 'anim', 'layout', 'cut']
+	proc_sort_list = proc_sort_list_init
 	#print 'DEBUG prw_list_complete'
 	#pprint(prw_list_complete)
 
@@ -396,7 +411,8 @@ def get_prw_by_flag(prw_list_complete, export_flag, sh_name):
 	while not prw_by_flag:
 		proc_sort_list = proc_sort_list[proc_sort_list.index(export_flag)+1:]
 		if proc_sort_list == []:
-			proc_sort_list = ['comp', 'render', 'anim', 'layout', 'cut']
+			#proc_sort_list = ['comp', 'render', 'anim', 'layout', 'cut']
+			proc_sort_list = proc_sort_list_init
 			proc_sort_list.reverse()
 		export_flag = proc_sort_list[0]
 		try:

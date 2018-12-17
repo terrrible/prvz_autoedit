@@ -64,15 +64,18 @@
          </item>
          <item>
           <widget class="QPushButton" name="folders_pushButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>Make Folders</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="xml_pushButton">
+          <widget class="QPushButton" name="update_sg_ep_pushButton">
            <property name="text">
-            <string>Load XML</string>
+            <string>Upd EP in SG</string>
            </property>
           </widget>
          </item>

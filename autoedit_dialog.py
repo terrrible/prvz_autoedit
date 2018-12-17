@@ -6,12 +6,14 @@ from PySide.QtCore import QFile, QProcess
 
 #sys.path.append(r'D:\Work\Scripts\python')
 sys.path.append(os.path.join(os.path.dirname(__file__), "autoedit_main"))
+sys.path.append('//PAROVOZ-FRM01//Shotgun//utils2')
 #sys.path.append(os.path.join(os.path.dirname(__file__), "autoedit_mk_struct"))
 import autoedit_main
 import autoedit_mk_struct
 import parse_xml
 import media_info
 import datetime
+import helpers
 
 from PySide import QtCore, QtGui
 
@@ -38,7 +40,7 @@ class AutoeditDlg(QtGui.QWidget):
 		self.dialog.ep_list.itemDoubleClicked.connect(self.read_config)
 		self.dialog.ep_list.itemClicked.connect(self.loadPattern)
 		self.dialog.folders_pushButton.clicked.connect(self.make_folders)
-		self.dialog.xml_pushButton.clicked.connect(self.parse_xml)
+		self.dialog.update_sg_ep_pushButton.clicked.connect(self.upd_sg_ep)
 		self.dialog.pushButton_updateseq.clicked.connect(self.start_update)
 		self.dialog.debugButton.clicked.connect(self.debug)
 		#self.dialog.ep_list.itemClicked.connect(self.clear)
@@ -55,7 +57,7 @@ class AutoeditDlg(QtGui.QWidget):
 		self.dialog.ep_list.clear()
 		#self.dialog.logOutput.append('loading..')
 		self.prj_name = self.dialog.prj_comboBox.currentText()
-		print 'send pro_name from gui', self.prj_name
+		print 'send prj_name from gui', self.prj_name
 		episodes = autoedit_main.get_all_prj_eps(self.prj_name)
 		for ep in episodes:
 			descr = ep[1]
@@ -67,8 +69,11 @@ class AutoeditDlg(QtGui.QWidget):
 		self.ep = self.dialog.ep_list.currentItem().text().split('\t')[0]
 		if self.prj_name == 'woo-woo': self.prj_name = 'woowoo'
 		ep_pattern = autoedit_main.get_ep_pattern(self.ep, self.prj_name)
-		for i in ep_pattern:
-			self.dialog.plainTextEdit_pattern.appendPlainText(i)
+		try:
+			for i in ep_pattern:
+				self.dialog.plainTextEdit_pattern.appendPlainText(i)
+		except TypeError:
+			self.parse_xml()
 
 	def updatePattern(self):
 		return [i for i in self.dialog.plainTextEdit_pattern.toPlainText().split('\n')]
@@ -81,7 +86,12 @@ class AutoeditDlg(QtGui.QWidget):
 		print 'found latest xml:', xmlfilename_path
 		if self.prj_name == 'woo-woo': self.prj_name = 'woowoo'
 		parse_xml.init_parsing(xmlfilename_path, self.ep, self.prj_name)
-		
+
+	def upd_sg_ep(self):
+		ep_pattern = self.updatePattern() 
+		self.ep = self.dialog.ep_list.currentItem().text().split('\t')[0]
+		autoedit_main.update_sg_episode_field(ep_pattern, self.ep, self.prj_name)
+
 	def make_folders(self):
 		ep_pattern = self.updatePattern() 
 		while len(ep_pattern) > 0:
@@ -253,6 +263,9 @@ class AutoeditDlg(QtGui.QWidget):
 	
 	def debug(self):
 		print self.dialog.plainTextEdit_pattern.toPlainText()
+		print helpers.ProjectHelper.project_roots
+		self.ep = self.dialog.ep_list.currentItem().text().split('\t')[0]
+		print self.ep
 
 def main():
 	app = QtGui.QApplication(sys.argv)
